@@ -6,18 +6,21 @@ contract RockPaperScissors is Stoppable {
 
   uint constant public EXPIRATION_LIMIT = 10 minutes / 15;
 
-  enum Player { PlayerOne, PlayerTwo }
   enum Move { Rock, Paper, Scissors }
 
   struct Game {
-    address player1;
-    bytes32 player1MoveHash;
-    address player2;
-    bytes32 player2MoveHash;
-    Move player1Move;
-    Move player2Move;
-    uint stake;
-    uint expiresAtBlock;
+    address     player1;
+    bytes32     player1MoveHash;
+    Move        player1Move;
+    uint        player1Deposit;
+
+    address     player2;
+    bytes32     player2MoveHash;
+    Move        player2Move;
+    uint        player2Deposit;
+
+    uint        stake;
+    uint        expiresAtBlock;
   }
 
   mapping (bytes32 => Game) private games;
@@ -31,23 +34,19 @@ contract RockPaperScissors is Stoppable {
 
   event LogPlayedMove(
     address indexed player,
-    address indexed opponent,
+    bytes32 gameKey,
     bytes32 moveHash);
 
   event LogRevealedMove(
     address indexed player,
-    address indexed opponent,
-    Move move);
+    bytes32 gameKey,
+    Move move,
+    bytes32 hashSecret);
 
   function RockPaperScissors()
     Ownable(msg.sender)
     public
   {}
-
-  modifier isPlayer(Player player) {
-    require(player == Player.PlayerOne || player == Player.PlayerTwo);
-    _;
-  }
 
   // games are created for two specific players up front
   function createGame(address player2, uint stake, uint expiration)
@@ -55,7 +54,7 @@ contract RockPaperScissors is Stoppable {
     public
     returns(bytes32 gameAddress)
   {
-    bytes32 key = getGameKey(msg.sender, player2);
+    bytes32 key = createGameKey(msg.sender, player2);
     Game storage game = games[key];
 
     require(expiration > 0);
@@ -78,7 +77,7 @@ contract RockPaperScissors is Stoppable {
   }
 
   // only one game between the two same players at any given time
-  function getGameKey(address player1, address player2)
+  function createGameKey(address player1, address player2)
     isActive
     view
     public
@@ -96,81 +95,47 @@ contract RockPaperScissors is Stoppable {
     return keccak256(this, msg.sender, move, hashSecret);
   }
 
-  function getPlayers(address unidentifiedPlayer, address opponentPlayer, Player claimedPlayer)
-    pure
-    private
-    returns(address, address)
-  {
-    address player1;
-    address player2;
-    if (claimedPlayer == Player.PlayerOne) {
-      player1 = unidentifiedPlayer;
-      player2 = opponentPlayer;
-    } else {
-      player1 = opponentPlayer;
-      player2 = unidentifiedPlayer;
-    }
-
-    return (player1, player2);
-  }
-
-  function getGame(address player1, address player2)
-    view
-    private
-    returns(Game storage)
-  {
-    bytes32 key = getGameKey(player1, player2);
-    Game storage game = games[key];
-
-    // verify that game is initialised/exists
-    require(game.player1 == player1);
-    return game;
-  }
-
-  function playMove(Player player, address opponent, bytes32 moveHash)
+  function playMove(bytes32 gameKey, bytes32 moveHash)
     isActive
-    isPlayer(player)
     public
     payable
     returns(bool success)
   {
-    require(opponent != address(0));
-
-    address player1;
-    address player2;
-
-    (player1, player2) = getPlayers(msg.sender, opponent, player);
-    Game storage game = getGame(player1, player2);
+    Game storage game = games[gameKey];
 
     require(game.expiresAtBlock < block.number);
+    // verify that game is initialised/exists
+    require(msg.sender == game.player1 || msg.sender == game.player2);
     require(msg.value % 2 == 0);
     require(msg.value == (game.stake / 2));
 
-    if (player == Player.PlayerOne) {
+    // both players need to have not revealed their move to play a move
+    require(game.player1MoveHash == 0);
+    require(game.player2MoveHash == 0);
+
+    if (msg.sender == game.player1) {
       game.player1MoveHash = moveHash;
+      game.player1Deposit = msg.value;
     } else {
       game.player2MoveHash = moveHash;
+      game.player2Deposit = msg.value;
     }
 
-    LogPlayedMove(msg.sender, opponent, moveHash);
+    LogPlayedMove(msg.sender, gameKey, moveHash);
 
     return true;
   }
 
-  function revealMove(Player player, address opponent, Move move, bytes32 hashSecret)
+  function revealMove(bytes32 gameKey, Move move, bytes32 hashSecret)
     isActive
-    isPlayer(player)
     public
     returns(bool success)
   {
-    require(opponent != address(0));
+    Game storage game = games[gameKey];
 
-    address player1;
-    address player2;
-
-    (player1, player2) = getPlayers(msg.sender, opponent, player);
-
-    Game storage game = getGame(player1, player2);
+    require(game.expiresAtBlock < block.number);
+    // verify that game is initialised/exists
+    require(msg.sender == game.player1 || msg.sender == game.player2);
 
     require(game.expiresAtBlock < block.number);
     // both players need to have placed their moves before revealing
@@ -178,15 +143,15 @@ contract RockPaperScissors is Stoppable {
     require(game.player2MoveHash != 0);
 
     bytes32 moveHash = createMoveHash(move, hashSecret);
-    if (player == Player.PlayerOne) {
+    if (msg.sender == game.player1) {
       require(moveHash == game.player1MoveHash);
       game.player1Move = move;
-    } else {
+    } else if (msg.sender == game.player2) {
       require(moveHash == game.player2MoveHash);
       game.player2Move = move;
     }
 
-    LogRevealedMove(msg.sender, opponent, move);
+    LogRevealedMove(msg.sender, gameKey, move, hashSecret);
 
     return true;
   }
