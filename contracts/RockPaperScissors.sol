@@ -95,6 +95,29 @@ contract RockPaperScissors is Stoppable {
     return keccak256(this, msg.sender, move, hashSecret);
   }
 
+  function withdraw(bytes32 gameKey)
+    isActive
+    public
+    returns(bool success)
+  {
+    Game storage game = games[gameKey];
+
+    uint player1Move = uint(game.player1Move);
+    uint player2Move = uint(game.player2Move);
+    require(player1Move != 0);
+    require(player2Move != 0);
+
+    if (player1Move == player2Move) {
+      // tie
+    } else if ((3 + player1Move - player2Move) % 3 == 1) {
+      // win
+    } else {
+      // loss
+    }
+
+    return true;
+  }
+
   function playMove(bytes32 gameKey, bytes32 moveHash)
     isActive
     public
