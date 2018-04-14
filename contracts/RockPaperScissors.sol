@@ -105,7 +105,7 @@ contract RockPaperScissors is Stoppable {
 
   function resolveGame(bytes32 gameKey)
     isActive
-    public
+    private
     returns(bool success)
   {
     Game storage game = games[gameKey];
