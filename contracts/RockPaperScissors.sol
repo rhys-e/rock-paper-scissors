@@ -1,29 +1,29 @@
 pragma solidity ^0.4.19;
 
 import "./Stoppable.sol";
+import "./PlayerHub.sol";
 
 contract RockPaperScissors is Stoppable {
 
   uint constant public EXPIRATION_LIMIT = 10 minutes / 15;
 
-  enum Move { Rock, Paper, Scissors }
+  enum Move { None, Rock, Paper, Scissors }
 
   struct Game {
     address     player1;
     bytes32     player1MoveHash;
     Move        player1Move;
-    uint        player1Deposit;
 
     address     player2;
     bytes32     player2MoveHash;
     Move        player2Move;
-    uint        player2Deposit;
 
     uint        stake;
     uint        expiresAtBlock;
   }
 
-  mapping (bytes32 => Game) private games;
+  mapping (bytes32 => Game) public games;
+  PlayerHub public playerHub;
 
   event LogNewGame(
     address indexed player1,
@@ -43,16 +43,24 @@ contract RockPaperScissors is Stoppable {
     Move move,
     bytes32 hashSecret);
 
-  function RockPaperScissors()
+  event LogResolvedGame(
+    address indexed player1,
+    address indexed player2,
+    bytes32 gameKey);
+
+  function RockPaperScissors(address playerHubAddr)
     Ownable(msg.sender)
     public
-  {}
+  {
+    playerHub = PlayerHub(playerHubAddr);
+  }
 
   // games are created for two specific players up front
   function createGame(address player2, uint stake, uint expiration)
     isActive
+    onlyOwner
     public
-    returns(bytes32 gameAddress)
+    returns(bytes32 gameKey)
   {
     bytes32 key = createGameKey(msg.sender, player2);
     Game storage game = games[key];
@@ -95,7 +103,7 @@ contract RockPaperScissors is Stoppable {
     return keccak256(this, msg.sender, move, hashSecret);
   }
 
-  function withdraw(bytes32 gameKey)
+  function resolveGame(bytes32 gameKey)
     isActive
     public
     returns(bool success)
@@ -107,13 +115,26 @@ contract RockPaperScissors is Stoppable {
     require(player1Move != 0);
     require(player2Move != 0);
 
+    uint halfStake = (game.stake / 2);
     if (player1Move == player2Move) {
-      // tie
+      // tie - balance doesn't change, return pledged balance
+      playerHub.creditAvailableBalance(game.player1, halfStake);
+      playerHub.creditAvailableBalance(game.player2, halfStake);
     } else if ((3 + player1Move - player2Move) % 3 == 1) {
-      // win
+      // player 1 win
+      // don't refund player 2 available balance and deduct balance by halfstake
+      playerHub.deductBalance(game.player2, halfStake);
+      // refund player 1 available balance and credit with halfstake
+      playerHub.creditBalance(game.player1, halfStake);
+      playerHub.creditAvailableBalance(game.player1, game.stake);
     } else {
-      // loss
+      // player 2 win
+      playerHub.deductBalance(game.player1, halfStake);
+      playerHub.creditBalance(game.player2, halfStake);
+      playerHub.creditAvailableBalance(game.player2, game.stake);
     }
+
+    LogResolvedGame(game.player1, game.player2, gameKey);
 
     return true;
   }
@@ -121,7 +142,6 @@ contract RockPaperScissors is Stoppable {
   function playMove(bytes32 gameKey, bytes32 moveHash)
     isActive
     public
-    payable
     returns(bool success)
   {
     Game storage game = games[gameKey];
@@ -129,19 +149,17 @@ contract RockPaperScissors is Stoppable {
     require(game.expiresAtBlock < block.number);
     // verify that game is initialised/exists
     require(msg.sender == game.player1 || msg.sender == game.player2);
-    require(msg.value % 2 == 0);
-    require(msg.value == (game.stake / 2));
 
     // both players need to have not revealed their move to play a move
     require(game.player1MoveHash == 0);
     require(game.player2MoveHash == 0);
 
+    require(playerHub.deductAvailableBalance(msg.sender, (game.stake / 2)));
+
     if (msg.sender == game.player1) {
       game.player1MoveHash = moveHash;
-      game.player1Deposit = msg.value;
     } else {
       game.player2MoveHash = moveHash;
-      game.player2Deposit = msg.value;
     }
 
     LogPlayedMove(msg.sender, gameKey, moveHash);
@@ -175,6 +193,10 @@ contract RockPaperScissors is Stoppable {
     }
 
     LogRevealedMove(msg.sender, gameKey, move, hashSecret);
+
+    if (game.player1Move != Move.None && game.player2Move != Move.None) {
+      resolveGame(gameKey);
+    }
 
     return true;
   }
