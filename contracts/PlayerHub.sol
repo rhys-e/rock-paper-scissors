@@ -56,12 +56,13 @@ contract PlayerHub is Stoppable {
     returns(bool success)
   {
     PlayerBalance storage playerBalance = deposits[msg.sender];
-    require(playerBalance.availableBalance > 0);
-    playerBalance.balance -= playerBalance.availableBalance;
+    uint availableBalance = playerBalance.availableBalance;
+    require(availableBalance > 0);
+    playerBalance.balance -= availableBalance;
     playerBalance.availableBalance = 0;
 
-    LogWithdraw(msg.sender, playerBalance.availableBalance, playerBalance.balance);
-    msg.sender.transfer(playerBalance.availableBalance);
+    LogWithdraw(msg.sender, availableBalance, playerBalance.balance);
+    msg.sender.transfer(availableBalance);
 
     return true;
   }
