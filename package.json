@@ -9,6 +9,7 @@
   "author": "@re",
   "license": "MIT",
   "devDependencies": {
+    "@digix/tempo": "^0.2.0",
     "babel-cli": "^6.22.2",
     "babel-core": "^6.22.1",
     "babel-loader": "^6.2.10",

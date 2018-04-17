@@ -58,7 +58,6 @@ contract RockPaperScissors is Stoppable {
   // games are created for two specific players up front
   function createGame(address player2, uint stake, uint expiration)
     isActive
-    onlyOwner
     public
     returns(bytes32 gameKey)
   {
