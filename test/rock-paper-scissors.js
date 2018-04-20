@@ -81,11 +81,19 @@ contract("RockPaperScissors", (accounts) => {
     it("should reject move if game has expired", () => {
       const blockNumber = web3.eth.blockNumber;
 
-      return waitUntilBlock(1, blockNumber + 21)
+      return waitUntilBlock(1, blockNumber + 11)
         .then(() => rpsGame.playMove(gameKey, 0x0, { from: player1 }))
         .then(assert.fail)
         .catch(err => {
           assert.include(err.message, "revert", "should revert when block number is beyond game expiry");
+        });
+    });
+
+    it("should reject move if sender is not one of the game players", () => {
+      return rpsGame.playMove(gameKey, 0x0, { from: accounts[0] })
+        .then(assert.fail)
+        .catch(err => {
+          assert.include(err.message, "revert", "should revert when player is not part of game");
         });
     });
   });
