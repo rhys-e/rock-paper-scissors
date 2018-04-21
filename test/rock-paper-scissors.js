@@ -96,5 +96,19 @@ contract("RockPaperScissors", (accounts) => {
           assert.include(err.message, "revert", "should revert when player is not part of game");
         });
     });
+
+    it("should reject move if either player's move has already been revealed", () => {
+      return rpsGame.createMoveHash(1, "abc", { from: player1 })
+        .then(hash => rpsGame.playMove(gameKey, hash, { from: player1 }))
+        .then(() => rpsGame.createMoveHash(2, "xyz", { from: player2 }))
+        .then(hash => rpsGame.playMove(gameKey, hash, { from: player2 }))
+        .then(() => rpsGame.revealMove(gameKey, 1, "abc"), { from: player1 })
+        .then(() => assert.ok())
+        .then(() => rpsGame.playMove(gameKey, 0x0, { from: player1 }))
+        .then(assert.fail)
+        .catch(err => {
+          assert.include(err.message, "revert", "should reject a move after reveal has already taken place");
+        });
+    });
   });
 });
