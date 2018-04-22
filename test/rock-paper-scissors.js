@@ -110,5 +110,14 @@ contract("RockPaperScissors", (accounts) => {
           assert.include(err.message, "revert", "should reject a move after reveal has already taken place");
         });
     });
+
+    it("should reject move if not enough available balance", () => {
+      return playerHub.deposit({ from: player1, value: 4 })
+        .then(() => rpsGame.playMove(gameKey, 0x0, { from: player1 }))
+        .then(assert.fail)
+        .catch(err => {
+          assert.include(err.message, "revert", "should revert when player doesn't have high enough balance");
+        });
+    });
   });
 });
