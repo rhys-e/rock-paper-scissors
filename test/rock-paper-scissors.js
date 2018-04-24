@@ -16,7 +16,7 @@ contract("RockPaperScissors", (accounts) => {
   let rpsGame;
   let expirationLimit;
 
-  before(() => {
+  beforeEach(() => {
     return PlayerHub.new({ from: owner })
       .then(instance => {
         playerHub = instance;
@@ -38,6 +38,15 @@ contract("RockPaperScissors", (accounts) => {
         .then(assert.fail)
         .catch(err => {
           assert.include(err.message, "revert", "should revert on 0 expiration");
+        });
+    });
+
+    it("should reject a game with same parameters as unresolved existing game", () => {
+      return rpsGame.createGame(player2, 10, 10, { from: player1 })
+        .then(() => rpsGame.createGame(player2, 10, 10, { from: player1 }))
+        .then(assert.fail)
+        .catch(err => {
+          assert.include(err.message, "revert", "should revert on duplicate game creation");
         });
     });
 
@@ -70,7 +79,7 @@ contract("RockPaperScissors", (accounts) => {
 
     let gameKey;
 
-    before(() => {
+    beforeEach(() => {
       return rpsGame.createGame(player2, 10, 10, { from: player1 })
         .then(() => Promise.promisify(rpsGame.allEvents().watch, { context: rpsGame.allEvents() })())
         .then(event => {
@@ -103,7 +112,6 @@ contract("RockPaperScissors", (accounts) => {
         .then(() => rpsGame.createMoveHash(2, "xyz", { from: player2 }))
         .then(hash => rpsGame.playMove(gameKey, hash, { from: player2 }))
         .then(() => rpsGame.revealMove(gameKey, 1, "abc"), { from: player1 })
-        .then(() => assert.ok())
         .then(() => rpsGame.playMove(gameKey, 0x0, { from: player1 }))
         .then(assert.fail)
         .catch(err => {
@@ -119,5 +127,30 @@ contract("RockPaperScissors", (accounts) => {
           assert.include(err.message, "revert", "should revert when player doesn't have high enough balance");
         });
     });
+  });
+
+  describe("should prevent moves with bad parameters from being revealed", () => {
+    let gameKey;
+
+    beforeEach(() => {
+      return rpsGame.createGame(player2, 10, 10, { from: player1 })
+        .then(() => Promise.promisify(rpsGame.allEvents().watch, { context: rpsGame.allEvents() })())
+        .then(event => {
+          gameKey = event.args.gameKey;
+        });
+    });
+
+    it("should reject reveal if game has expired", () => {
+      const blockNumber = web3.eth.blockNumber;
+
+      return rpsGame.createMoveHash(1, "abc", { from: player1 })
+        .then(hash => rpsGame.playMove(gameKey, hash, { from: player1 }))
+        .then(() => waitUntilBlock(1, blockNumber + 11))
+        .then(() => rpsGame.revealMove(gameKey, 1, "abc", { from: player1 }))
+        .then(assert.fail)
+        .catch(err => {
+          assert.include(err.message, "revert", "should revert when block number is beyond game expiry");
+        });
+    })
   });
 });
