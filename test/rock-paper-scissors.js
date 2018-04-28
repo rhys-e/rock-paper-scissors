@@ -152,5 +152,15 @@ contract("RockPaperScissors", (accounts) => {
           assert.include(err.message, "revert", "should revert when block number is beyond game expiry");
         });
     })
+
+    it("should reject move if sender is not one of the game players", () => {
+      return rpsGame.createMoveHash(1, "abc", { from: player1 })
+        .then(hash => rpsGame.playMove(gameKey, hash, { from: player1 }))
+        .then(() => rpsGame.revealMove(gameKey, 1, "abc", { from: account[0]}))
+        .then(assert.fail)
+        .catch(err => {
+          assert.include(err.message, "revert", "should revert when player is not part of game");
+        });
+    });
   });
 });
