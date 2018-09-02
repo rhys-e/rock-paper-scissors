@@ -1,7 +1,6 @@
 pragma solidity ^0.4.19;
 
 import "./Stoppable.sol";
-import "./RockPaperScissors.sol";
 
 contract PlayerHub is Stoppable {
 
@@ -11,7 +10,7 @@ contract PlayerHub is Stoppable {
   }
 
   mapping (address => PlayerBalance) public deposits;
-  RockPaperScissors public rpsGame;
+  address public game;
 
   event LogDeposit(
     address indexed player,
@@ -29,11 +28,11 @@ contract PlayerHub is Stoppable {
     _;
   }
 
-  function PlayerHub()
+  function PlayerHub(address gameAddress)
     Ownable(msg.sender)
     public
   {
-    rpsGame = new RockPaperScissors(this);
+    game = gameAddress;
   }
 
   function deposit()
