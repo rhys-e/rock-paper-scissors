@@ -1,36 +1,41 @@
 const path = require('path');
-const CopyWebpackPlugin = require('copy-webpack-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
-  entry: './app/javascripts/app.js',
-  output: {
-    path: path.resolve(__dirname, 'build'),
-    filename: 'app.js'
+  entry: {
+    'rps': './app/rockPaperScissors.jsx'
   },
-  plugins: [
-    // Copy our app's index.html to the build folder.
-    new CopyWebpackPlugin([
-      { from: './app/index.html', to: "index.html" }
-    ])
-  ],
+  mode: 'development',
+  output: {
+    path: path.resolve(__dirname, './dist'),
+    filename: '[name]_bundle.js'
+  },
   module: {
     rules: [
-      {
-       test: /\.css$/,
-       use: [ 'style-loader', 'css-loader' ]
-      }
-    ],
-    loaders: [
-      { test: /\.json$/, use: 'json-loader' },
-      {
-        test: /\.js$/,
-        exclude: /(node_modules)/,
-        loader: 'babel-loader',
-        query: {
-          presets: ['es2015'],
-          plugins: ['transform-runtime']
-        }
+      { test: /\.css$/,
+        use: [
+          { loader: 'style-loader' },
+          { loader: 'css-loader' }
+        ]
+      }, {
+        test: /\.jsx?$/,
+        exclude: /node_modules/,
+        use: 'babel-loader'
       }
     ]
+  },
+  resolve: {
+    extensions: ['.js', '.jsx']
+  },
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: './app/index.html',
+      filename: 'index.html',
+      chunks: ['rps'],
+      inject: 'body'
+    })
+  ],
+  devServer: {
+    host: '0.0.0.0'
   }
 }
