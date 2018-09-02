@@ -1,9 +1,9 @@
 pragma solidity ^0.4.19;
 
-import "./Stoppable.sol";
+import "./Pausable.sol";
 import "./PlayerHub.sol";
 
-contract RockPaperScissors is Stoppable {
+contract RockPaperScissors is Pausable {
 
   uint constant public EXPIRATION_LIMIT = 10 minutes / 15;
 
@@ -48,8 +48,8 @@ contract RockPaperScissors is Stoppable {
     address indexed player2,
     bytes32 gameKey);
 
-  function RockPaperScissors(address playerHubAddr)
-    Ownable(msg.sender)
+  function RockPaperScissors(address playerHubAddr, bool isPaused)
+    Pausable(isPaused)
     public
   {
     playerHub = PlayerHub(playerHubAddr);
@@ -57,7 +57,7 @@ contract RockPaperScissors is Stoppable {
 
   // games are created for two specific players up front
   function createGame(address player2, uint stake, uint expiration)
-    isActive
+    whenNotPaused
     public
     returns(bytes32 gameKey)
   {
@@ -85,7 +85,7 @@ contract RockPaperScissors is Stoppable {
 
   // only one game between the two same players at any given time
   function createGameKey(address player1, address player2)
-    isActive
+    whenNotPaused
     view
     public
     returns(bytes32 gameKey)
@@ -94,7 +94,7 @@ contract RockPaperScissors is Stoppable {
   }
 
   function createMoveHash(Move move, bytes32 hashSecret)
-    isActive
+    whenNotPaused
     view
     public
     returns(bytes32 moveHash)
@@ -103,7 +103,7 @@ contract RockPaperScissors is Stoppable {
   }
 
   function resolveGame(bytes32 gameKey)
-    isActive
+    whenNotPaused
     private
     returns(bool success)
   {
@@ -139,7 +139,7 @@ contract RockPaperScissors is Stoppable {
   }
 
   function playMove(bytes32 gameKey, bytes32 moveHash)
-    isActive
+    whenNotPaused
     public
     returns(bool success)
   {
@@ -167,7 +167,7 @@ contract RockPaperScissors is Stoppable {
   }
 
   function revealMove(bytes32 gameKey, Move move, bytes32 hashSecret)
-    isActive
+    whenNotPaused
     public
     returns(bool success)
   {

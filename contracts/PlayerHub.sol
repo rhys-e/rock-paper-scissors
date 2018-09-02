@@ -1,8 +1,8 @@
 pragma solidity ^0.4.19;
 
-import "./Stoppable.sol";
+import "./Pausable.sol";
 
-contract PlayerHub is Stoppable {
+contract PlayerHub is Pausable {
 
   struct PlayerBalance {
     uint balance;
@@ -23,20 +23,25 @@ contract PlayerHub is Stoppable {
     uint remainingBalance
   );
 
-  modifier isGame() {
+  modifier fromGame() {
     require(msg.sender == address(game));
     _;
   }
 
-  function PlayerHub(address gameAddress)
-    Ownable(msg.sender)
+  function PlayerHub(bool isPaused)
+    Pausable(isPaused)
+    public
+  {}
+
+  function setGame(address gameAddress)
+    fromOwner
     public
   {
     game = gameAddress;
   }
 
   function deposit()
-    isActive
+    whenNotPaused
     public
     payable
     returns(bool success)
@@ -50,7 +55,7 @@ contract PlayerHub is Stoppable {
   }
 
   function withdraw()
-    isActive
+    whenNotPaused
     public
     returns(bool success)
   {
@@ -67,8 +72,8 @@ contract PlayerHub is Stoppable {
   }
 
   function creditBalance(address player, uint creditBalanceAmount)
-    isActive
-    isGame
+    whenNotPaused
+    fromGame
     public
     returns(bool success)
   {
@@ -78,8 +83,8 @@ contract PlayerHub is Stoppable {
   }
 
   function deductBalance(address player, uint deductBalanceAmount)
-    isActive
-    isGame
+    whenNotPaused
+    fromGame
     public
     returns(bool success)
   {
@@ -89,8 +94,8 @@ contract PlayerHub is Stoppable {
   }
 
   function creditAvailableBalance(address player, uint creditBalanceAmount)
-    isActive
-    isGame
+    whenNotPaused
+    fromGame
     public
     returns(bool success)
   {
@@ -100,8 +105,8 @@ contract PlayerHub is Stoppable {
   }
 
   function deductAvailableBalance(address player, uint deductBalanceAmount)
-    isActive
-    isGame
+    whenNotPaused
+    fromGame
     public
     returns(bool success)
   {
