@@ -24,7 +24,7 @@ contract PlayerHub is Stoppable {
   );
 
   modifier isGame() {
-    require(msg.sender == address(rpsGame));
+    require(msg.sender == address(game));
     _;
   }
 
