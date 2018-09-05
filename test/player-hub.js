@@ -14,11 +14,11 @@ contract("PlayerHub", (accounts) => {
   let rpsGame;
 
   before(() => {
-    return PlayerHub.new({ from: owner })
+    return PlayerHub.new(false, { from: owner })
       .then(instance => {
         playerHub = instance;
       })
-      .then(() => playerHub.rpsGame())
+      .then(() => playerHub.game())
       .then(game => {
         rpsGame = game;
       });

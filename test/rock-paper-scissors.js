@@ -17,13 +17,14 @@ contract("RockPaperScissors", (accounts) => {
   let expirationLimit;
 
   beforeEach(() => {
-    return PlayerHub.new({ from: owner })
+    return PlayerHub.new(false, { from: owner })
       .then(instance => {
         playerHub = instance;
       })
-      .then(() => playerHub.rpsGame())
+      .then(() => RockPaperScissors.new(playerHub.address, false, { from: owner }))
       .then(game => {
-        rpsGame = RockPaperScissors.at(game);
+        rpsGame = game;
+        return playerHub.setGame(game.address);
       })
       .then(() => rpsGame.EXPIRATION_LIMIT())
       .then(limit => {
