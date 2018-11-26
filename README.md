@@ -1,3 +1,5 @@
+Not currently functional or actively maintained. Do not use.
+
 # Rock-Paper-Scissors
 
 - Alice and Bob play the classic rock paper scissors game.
